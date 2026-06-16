@@ -1,0 +1,16 @@
+import { defineSandbox, vercelSandboxBackend } from "eve/sandbox";
+
+/**
+ * Agent sandbox configuration.
+ *
+ * @remarks
+ * Pins the hosted Vercel Sandbox backend for both local development and production, so the
+ * same environment runs everywhere. Running locally requires the project to be linked and
+ * authenticated to Vercel. This agent only uses the sandbox to read seeded skill files under
+ * `/workspace/skills/`.
+ *
+ * @see {@link https://vercel.com/docs/sandbox | Vercel Sandbox}
+ */
+export default defineSandbox({
+  backend: vercelSandboxBackend(),
+});
