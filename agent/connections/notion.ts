@@ -4,11 +4,12 @@ import { defineMcpClientConnection } from "eve/connections";
 /**
  * Vercel Connect connector UID for the Notion MCP server.
  *
- * @defaultValue `"notion"`. Override with the `NOTION_CONNECTOR` environment variable, set
- * to the UID printed by `vercel connect create mcp.notion.com --name notion` (typically
- * `mcp.notion.com/notion`).
+ * @defaultValue `"mcp.notion.com/notion"` — the UID `vercel connect create mcp.notion.com
+ * --name notion` produces (UIDs are `<type>/<name>`)
+ * Override with the `NOTION_CONNECTOR` environment variable when your connector uses a different
+ * name.
  */
-const notionConnector = process.env.NOTION_CONNECTOR ?? "notion";
+const notionConnector = process.env.NOTION_CONNECTOR ?? "mcp.notion.com/notion";
 
 /**
  * Notion workspace connection (MCP) exposing search, read, and edit tools to the model.

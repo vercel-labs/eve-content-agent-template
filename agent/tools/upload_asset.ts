@@ -1,6 +1,10 @@
 import { put } from "@vercel/blob";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import {
+  isReservedWriterPath,
+  WRITER_PREFERENCES_PREFIX,
+} from "#lib/writer-preferences.js";
 
 /**
  * Tool that uploads text or binary content to Vercel Blob storage.
@@ -80,6 +84,16 @@ export default defineTool({
     addRandomSuffix,
     allowOverwrite,
   }) {
+    if (isReservedWriterPath(pathname)) {
+      return {
+        success: false,
+        url: "",
+        downloadUrl: "",
+        pathname,
+        contentType: contentType ?? "unknown",
+        error: `"${WRITER_PREFERENCES_PREFIX}" is reserved — use save_writer_preferences instead.`,
+      };
+    }
     try {
       const body = isBase64 ? Buffer.from(content, "base64") : content;
       const blob = await put(pathname, body, {

@@ -4,7 +4,7 @@
   "linter": {
     "rules": {
       "style": {
-        // Eve derives tool/connection/skill names from filenames, and this project
+        // eve derives tool/connection/skill names from filenames, and this project
         // uses snake_case (e.g. agent/tools/upload_asset.ts). Disable the kebab-case
         // filename rule so those names aren't flagged.
         "useFilenamingConvention": "off"
