@@ -1,4 +1,5 @@
-import { defineSandbox, vercelSandboxBackend } from "eve/sandbox";
+import { defineSandbox } from "eve/sandbox";
+import { vercel } from "eve/sandbox/vercel";
 
 /**
  * Agent sandbox configuration.
@@ -12,5 +13,5 @@ import { defineSandbox, vercelSandboxBackend } from "eve/sandbox";
  * @see {@link https://vercel.com/docs/sandbox | Vercel Sandbox}
  */
 export default defineSandbox({
-  backend: vercelSandboxBackend(),
+  backend: vercel(),
 });

@@ -1,5 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { isReservedWriterUrl } from "#lib/writer-preferences.js";
 
 /**
  * Host suffix that a downloadable URL must end with.
@@ -42,6 +43,13 @@ export default defineTool({
    * `success: false` with an `error` message.
    */
   async execute({ url }) {
+    if (isReservedWriterUrl(url)) {
+      return {
+        success: false,
+        url,
+        error: "Writer preferences are private — use get_writer_preferences.",
+      };
+    }
     try {
       if (!new URL(url).hostname.endsWith(BLOB_HOST_SUFFIX)) {
         return {

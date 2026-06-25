@@ -1,13 +1,13 @@
-# Eve Content Agent Template
+# eve Content Agent Template
 
-A Slack-based content assistant built on [Eve](https://beta.eve.dev). Writers @mention it in
-Slack and it drafts blog posts, LinkedIn posts, release notes, and newsletters in your house
-voice, pulling source material from Notion and publishing approved pieces back to Notion as
-the signed-in writer.
+A Slack-based content assistant built on [eve](https://eve.dev). Writers @mention it in
+Slack and it drafts blog posts, LinkedIn and X posts, release notes, and newsletters in your
+house voice, pulling source material from Notion and publishing approved pieces back to Notion
+as the signed-in writer.
 
 - **Lives in Slack.** Answers @mentions and DMs, replies in threads, and renders approvals as
   buttons.
-- **Writes in your voice.** One editable style skill per surface (blog, LinkedIn, release
+- **Writes in your voice.** One editable style skill per surface (blog, LinkedIn, X, release
   notes, newsletter), enforced by a deterministic style-lint tool.
 - **Grounded in Notion.** Each writer signs in to their own Notion through Vercel Connect, so
   drafts are created as the real person with their own permissions, with no shared secret.
@@ -31,20 +31,29 @@ Once deployed, @mention the bot in your Slack workspace to start drafting.
 
 | Layer | Technology |
 | --- | --- |
-| Agent framework | [Eve](https://beta.eve.dev) |
+| Agent framework | [eve](https://eve.dev) |
 | Language | TypeScript (strict, ESM) |
 | Chat surface | Slack, via [Vercel Connect](https://vercel.com/docs/connect) |
-| Source & publishing | Notion (MCP), user-scoped OAuth via Vercel Connect |
-| File storage | [Vercel Blob](https://vercel.com/docs/vercel-blob), authenticated by OIDC |
-| Model access | [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) (default: Claude Opus 4.8) |
+| Source & publishing | Notion (MCP), user-scoped OAuth via [Vercel Connect](https://vercel.com/docs/connect) |
+| File storage | [Vercel Blob](https://vercel.com/docs/vercel-blob) |
+| Model access | [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) |
 | Sandbox | [Vercel Sandbox](https://vercel.com/docs/sandbox) |
 | Lint & format | [Ultracite](https://www.ultracite.ai/) (Biome) |
 
-**Zero static keys.** Authentication runs entirely on [Vercel Connect](https://vercel.com/docs/connect)
+**Zero static keys.**
+Authentication runs entirely on [Vercel Connect](https://vercel.com/docs/connect)
 (Slack and Notion) and [Vercel OIDC](https://vercel.com/docs/oidc) (Vercel Blob and AI
 Gateway). There are no API keys or client secrets to manage in code or `.env` files: Notion is
 authorized per writer in the browser, and Blob and the model authenticate with the project's
 OIDC token.
+
+## Quick start with an AI coding agent
+
+If you're working with an AI coding agent like Claude Code or Cursor, you can use this prompt to have it help you with building your agent:
+
+```text
+I want to build a Slack agent with the eve framework, using the eve content agent template. Read the setup instructions at https://agent-resources.dev/eve-content-agent-template.md and follow them. They will cover deploying the template, building with eve, how everything works overall, and more.
+```
 
 ## What's inside
 
@@ -55,6 +64,8 @@ agent/
   channels/slack.ts         # Slack surface (Vercel Connect credentials)
   connections/notion.ts     # Notion workspace, user-scoped OAuth via Vercel Connect
   sandbox.ts                # Vercel Sandbox backend
+  subagents/
+    reviewer/               # fresh-context draft reviewer (own session, no inherited skills)
   tools/
     lint_against_style.ts   # deterministic banned-words check
     upload_asset.ts         # Vercel Blob: store text or binary content
@@ -62,11 +73,22 @@ agent/
     get_asset_info.ts       # Vercel Blob: metadata without downloading
     download_asset.ts       # Vercel Blob: read a stored file back
     delete_asset.ts         # Vercel Blob: delete (requires approval)
-  skills/
-    blog-style/             # voice, structure, and a canonical example post
-    linkedin-style/
+    get_writer_preferences.ts   # load this writer's saved style preferences
+    save_writer_preferences.ts  # save standing preferences (per-writer, principal-scoped)
+    clear_writer_preferences.ts # clear this writer's preferences (requires approval)
+  lib/
+    writer-preferences.ts   # principal-scoped Blob key + reserved-prefix guard
+  skills/                   # one style skill per surface
+    blog-style/             # + best-practices.md and format-specs.md
+    linkedin-style/         # + best-practices.md and post-specs.md
+    x-style/                # X (Twitter) — + best-practices.md and post-specs.md
     release-notes-style/
     newsletter-style/
+shared-references/          # house-wide writing rules (source of truth), synced into each skill
+  ai-phrases-to-avoid.md
+  plain-english-alternatives.md
+scripts/
+  sync-shared.mjs           # syncs shared-references/ into every skill + SKILL.md (pnpm sync:shared)
 ```
 
 ## Local development
@@ -123,7 +145,12 @@ vercel blob create-store <name> --access public --yes
 
 - **Voice:** edit the per-surface skills in `agent/skills/*/SKILL.md`, and the
   `references/banned-words.json` each one lints against. Add a new surface by adding a new
-  skill folder.
+  skill folder (and a matching entry in the `lint_against_style` surface list).
+- **House-wide rules:** edit the shared writing rules in `shared-references/` (the source of
+  truth), then run `pnpm sync:shared`. It copies them into every skill's `references/` and
+  regenerates the managed `## Shared references` section in each `SKILL.md` (a skill's own
+  `## References` section is left alone). The sync also runs automatically on `pnpm dev` and
+  `pnpm build`. Never edit the synced copies or that section directly.
 - **Behavior:** edit `agent/instructions.md`.
 - **Model:** edit `agent/agent.ts` (or run `/model` in the dev TUI).
 - **Tools:** add or change tools in `agent/tools/`. The filename is the tool name.
@@ -132,6 +159,13 @@ The agent auto-updates as you edit these files.
 
 ## Learn more
 
-- [Eve documentation](https://beta.eve.dev/docs/introduction): the framework powering this agent.
+- [Draft content in your voice from Slack with eve](https://vercel.com/kb/guide/eve-content-agent): Vercel Knowledge Base guide
+- [eve documentation](https://eve.dev/docs/introduction): the framework powering this agent.
 - [Vercel Connect](https://vercel.com/docs/connect): manages the Slack and Notion credentials.
 - [Vercel Blob](https://vercel.com/docs/vercel-blob): object storage for the asset tools.
+
+## Related templates
+
+- [eve Chat Template](https://vercel.com/templates/eve/eve-chat-template)
+- [eve Slack Agent](https://vercel.com/templates/eve/eve-slack-agent)
+- [eve Personal Agent](https://vercel.com/templates/nuxt/eve-personal-agent)
