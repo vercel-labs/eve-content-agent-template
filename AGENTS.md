@@ -43,8 +43,10 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   `approval` field — pass a policy that inspects `toolName`/`toolInput` to gate specific tools
   (e.g. `notion` gates `notion-create-pages` via its `APPROVAL_REQUIRED_TOOLS` list).
 - **Skills** are load-on-demand. A packaged skill (`<name>/SKILL.md`) requires `description`
-  frontmatter; that description is the routing hint. Adding a new surface means a new skill
-  folder **and** a matching entry in the `lint_against_style` surface enum.
+  frontmatter; that description is the routing hint. Adding a new surface is just a new
+  `<surface>-style` skill folder: the `SURFACES` enum that `lint_against_style` and the reviewer's
+  `get_surface_rubric` share is generated from those folders into `agent/lib/surfaces.generated.ts`
+  by `pnpm sync:shared`, so there is no hand-edited enum to keep in step.
 - **Shared references** live in `shared-references/` (the source of truth). `scripts/sync-shared.mjs`
   copies them into every skill's `references/` and regenerates the managed `## Shared references`
   section in each `SKILL.md` (the bullet text lives in that script's `SHARED_FILES`). Edit the
@@ -54,7 +56,9 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   `description` — the routing hint). The directory name is the identity and the lowered tool
   name (no namespace; it must not collide with a tool name). A declared subagent runs in a fresh
   child session and **inherits nothing** from the root (no skills, connections, tools, or
-  sandbox), so the caller passes everything it needs in the `message`. Here: `reviewer`.
+  sandbox), so the caller passes everything it needs in the `message`. Here: `researcher` and
+  `reviewer` (the reviewer carries its own generated rubric module + `get_surface_rubric` tool
+  rather than inheriting the root's skills).
 - After editing, **check LSP diagnostics / `pnpm typecheck`** and fix type errors before
   moving on.
 
