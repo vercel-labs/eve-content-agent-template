@@ -43,8 +43,10 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   `approval` field — pass a policy that inspects `toolName`/`toolInput` to gate specific tools
   (e.g. `notion` gates `notion-create-pages` via its `APPROVAL_REQUIRED_TOOLS` list).
 - **Skills** are load-on-demand. A packaged skill (`<name>/SKILL.md`) requires `description`
-  frontmatter; that description is the routing hint. Adding a new surface means a new skill
-  folder **and** a matching entry in the `lint_against_style` surface enum.
+  frontmatter; that description is the routing hint. Adding a new surface is just a new
+  `<surface>-style` skill folder: the `SURFACES` enum that `lint_against_style` and the reviewer's
+  `get_surface_rubric` share is generated from those folders into `agent/lib/surfaces.generated.ts`
+  by `pnpm sync:shared`, so there is no hand-edited enum to keep in step.
 - **Shared references** live in `shared-references/` (the source of truth). `scripts/sync-shared.mjs`
   copies them into every skill's `references/` and regenerates the managed `## Shared references`
   section in each `SKILL.md` (the bullet text lives in that script's `SHARED_FILES`). Edit the

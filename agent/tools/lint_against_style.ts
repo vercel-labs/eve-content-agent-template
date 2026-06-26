@@ -1,5 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { SURFACES } from "../lib/surfaces.generated.js";
 
 /**
  * Escape regular-expression metacharacters so a banned word is matched literally.
@@ -86,7 +87,7 @@ export default defineTool({
     "Check a draft against the active surface's style rules and return any violations. " +
     "Run before proposing a draft to the writer.",
   inputSchema: z.object({
-    surface: z.enum(["blog", "linkedin", "x", "release-notes", "newsletter"]),
+    surface: z.enum(SURFACES),
     text: z.string().min(1).max(MAX_TEXT_LENGTH),
   }),
   outputSchema: OUTPUT_SCHEMA,
