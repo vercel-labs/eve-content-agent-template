@@ -8,7 +8,7 @@ it current as the codebase evolves.
 - **Name:** Content Agent (eve content assistant template)
 - **Maintainer:** Vercel Labs
 - **License:** Apache-2.0
-- **Last updated:** 2026-06-25
+- **Last updated:** 2026-06-26
 
 ## Overview
 
@@ -34,7 +34,8 @@ agent/
     notion.ts               # Notion MCP server, user-scoped OAuth; page creation approval-gated
   sandbox.ts                # sandbox backend (Vercel Sandbox)
   subagents/
-    reviewer/               # agent.ts + instructions.md; fresh-context draft reviewer
+    researcher/             # agent.ts + instructions.md; fresh-context web researcher (web tools only)
+    reviewer/               # agent.ts + instructions.md + tools/get_surface_rubric.ts + lib/rubric.generated.ts
   tools/
     lint_against_style.ts   # banned-words check against the active surface's skill
     upload_asset.ts         # Vercel Blob: store text/binary
@@ -47,6 +48,7 @@ agent/
     clear_writer_preferences.ts # Blob: clear this writer's preferences (approval-gated)
   lib/
     writer-preferences.ts   # principal-scoped Blob key + reserved-prefix guard (shared helper)
+    surfaces.generated.ts   # generated shared SURFACES enum (skill folders are the source of truth)
   skills/                   # one style skill per surface; shared refs synced into each
     blog-style/             # SKILL.md + references/{best-practices.md, format-specs.md, banned-words.json}
     linkedin-style/         # SKILL.md + references/{best-practices.md, post-specs.md, banned-words.json}
@@ -57,7 +59,7 @@ shared-references/          # house-wide writing rules (source of truth), synced
   ai-phrases-to-avoid.md
   plain-english-alternatives.md
 scripts/
-  sync-shared.mjs           # syncs shared-references/ into every skill + SKILL.md (pnpm sync:shared)
+  sync-shared.mjs           # syncs shared refs into skills; generates SURFACES + reviewer rubric (pnpm sync:shared)
 ```
 
 ## Core components
@@ -71,12 +73,15 @@ scripts/
 | Notion access | `agent/connections/notion.ts` | Connection (MCP) | Search/read/write Notion as the signed-in writer; page creation (`notion-create-pages`) is approval-gated |
 | Asset tools | `agent/tools/{upload,list,get_asset_info,download,delete}_asset.ts` | Tools | Store and manage files in Vercel Blob |
 | Writer preferences | `agent/tools/{get,save,clear}_writer_preferences.ts` + `agent/lib/writer-preferences.ts` | Tools | Per-writer standing style preferences in Blob, keyed to the resolved principal (never model input) |
-| Reviewer subagent | `agent/subagents/reviewer/` | Subagent | Fresh-context, verdict-only review of a finished draft against the surface rubric before it reaches the writer |
+| Researcher subagent | `agent/subagents/researcher/` | Subagent | Fresh-context web research for facts Notion doesn't cover; uses framework `web_search`/`web_fetch`, returns cited findings + gaps |
+| Reviewer subagent | `agent/subagents/reviewer/` | Subagent | Fresh-context, verdict-only review of a finished draft; pulls the surface rubric itself via its `get_surface_rubric` tool (a generated bundle), so the root passes only the surface and draft |
 
 Channels and the connection are I/O boundaries. Tools run in the app runtime (full
 `process.env`). Skills only add instructions to context; they are not an execution surface. The
-`reviewer` subagent runs in its own isolated child session — fresh context, none of the root's
-skills or connections — so the root passes everything it needs in the call `message`.
+`researcher` and `reviewer` subagents each run in their own isolated child session — fresh
+context, none of the root's skills or connections — so the root passes what each needs in the call
+`message`. The reviewer is sent only the surface and draft; it loads the rubric itself through its
+own `get_surface_rubric` tool.
 
 ## Data stores
 
@@ -164,14 +169,16 @@ There is no application database.
   frontmatter used for routing.
 - **Subagent:** a declared agent under `agent/subagents/<id>/` that the root delegates to as a
   tool. It runs in its own fresh child session and inherits none of the root's skills,
-  connections, or tools, so the root passes context in the call `message`. Here: `reviewer`.
+  connections, or tools, so the root passes context in the call `message`. Here: `researcher`
+  (web research) and `reviewer` (draft review).
 - **Surface:** a content type with its own style skill (blog, LinkedIn, X, release-notes,
   newsletter).
 - **Shared references:** house-wide writing rules in `shared-references/` (the source of
   truth). `scripts/sync-shared.mjs` (`pnpm sync:shared`, also run on `predev`/`prebuild`) copies
   them into every skill's `references/` and regenerates the managed `## Shared references` section
-  in each `SKILL.md`; the skill's own `## References` section is preserved. Edit the source, never
-  the synced copies or that section.
+  in each `SKILL.md`; the skill's own `## References` section is preserved. The same script also
+  generates `agent/lib/surfaces.generated.ts` (the shared `SURFACES` enum) and the reviewer's
+  rubric module. Edit the source, never the synced copies or generated files.
 - **Vercel Connect:** brokers OAuth/credentials for Slack and Notion; connectors are
   identified by a UID.
 - **OIDC:** the project's Vercel identity token, used to authenticate Blob (and AI Gateway)

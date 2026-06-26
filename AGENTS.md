@@ -56,7 +56,9 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   `description` — the routing hint). The directory name is the identity and the lowered tool
   name (no namespace; it must not collide with a tool name). A declared subagent runs in a fresh
   child session and **inherits nothing** from the root (no skills, connections, tools, or
-  sandbox), so the caller passes everything it needs in the `message`. Here: `reviewer`.
+  sandbox), so the caller passes everything it needs in the `message`. Here: `researcher` and
+  `reviewer` (the reviewer carries its own generated rubric module + `get_surface_rubric` tool
+  rather than inheriting the root's skills).
 - After editing, **check LSP diagnostics / `pnpm typecheck`** and fix type errors before
   moving on.
 

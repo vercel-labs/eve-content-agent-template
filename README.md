@@ -66,7 +66,8 @@ agent/
   connections/notion.ts     # Notion workspace, user-scoped OAuth; page creation requires approval
   sandbox.ts                # Vercel Sandbox backend
   subagents/
-    reviewer/               # fresh-context draft reviewer (own session, no inherited skills)
+    researcher/             # fresh-context web researcher (own session, web tools only)
+    reviewer/               # fresh-context draft reviewer (own session); pulls its rubric via a tool
   tools/
     lint_against_style.ts   # deterministic banned-words check
     upload_asset.ts         # Vercel Blob: store text or binary content
@@ -79,6 +80,7 @@ agent/
     clear_writer_preferences.ts # clear this writer's preferences (requires approval)
   lib/
     writer-preferences.ts   # principal-scoped Blob key + reserved-prefix guard
+    surfaces.generated.ts   # generated SURFACES enum (skill folders are the source of truth)
   skills/                   # one style skill per surface
     blog-style/             # + best-practices.md and format-specs.md
     linkedin-style/         # + best-practices.md and post-specs.md
@@ -89,7 +91,7 @@ shared-references/          # house-wide writing rules (source of truth), synced
   ai-phrases-to-avoid.md
   plain-english-alternatives.md
 scripts/
-  sync-shared.mjs           # syncs shared-references/ into every skill + SKILL.md (pnpm sync:shared)
+  sync-shared.mjs           # syncs shared refs into skills; generates SURFACES + reviewer rubric (pnpm sync:shared)
 ```
 
 ## Local development
@@ -146,12 +148,14 @@ vercel blob create-store <name> --access public --yes
 
 - **Voice:** edit the per-surface skills in `agent/skills/*/SKILL.md`, and the
   `references/banned-words.json` each one lints against. Add a new surface by adding a new
-  skill folder (and a matching entry in the `lint_against_style` surface list).
+  `<surface>-style` skill folder and running `pnpm sync:shared` — the `SURFACES` enum shared by
+  `lint_against_style` and the reviewer is generated from the folders, so there's no list to edit.
 - **House-wide rules:** edit the shared writing rules in `shared-references/` (the source of
   truth), then run `pnpm sync:shared`. It copies them into every skill's `references/` and
   regenerates the managed `## Shared references` section in each `SKILL.md` (a skill's own
-  `## References` section is left alone). The sync also runs automatically on `pnpm dev` and
-  `pnpm build`. Never edit the synced copies or that section directly.
+  `## References` section is left alone), and regenerates `agent/lib/surfaces.generated.ts` and
+  the reviewer's rubric module. The sync also runs automatically on `pnpm dev` and `pnpm build`.
+  Never edit the synced copies or generated files directly.
 - **Behavior:** edit `agent/instructions.md`.
 - **Model:** edit `agent/agent.ts` (or run `/model` in the dev TUI).
 - **Tools:** add or change tools in `agent/tools/`. The filename is the tool name.
