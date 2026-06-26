@@ -10,7 +10,8 @@ as the signed-in writer.
 - **Writes in your voice.** One editable style skill per surface (blog, LinkedIn, X, release
   notes, newsletter), enforced by a deterministic style-lint tool.
 - **Grounded in Notion.** Each writer signs in to their own Notion through Vercel Connect, so
-  drafts are created as the real person with their own permissions, with no shared secret.
+  drafts are created as the real person with their own permissions, with no shared secret — and
+  page creation pauses for the writer's approval before it runs.
 - **Stores files in Vercel Blob.** Export drafts, save images and attachments, and read them
   back, authenticated by the project's OIDC token.
 
@@ -62,7 +63,7 @@ agent/
   agent.ts                  # model configuration
   instructions.md           # the agent's behavior
   channels/slack.ts         # Slack surface (Vercel Connect credentials)
-  connections/notion.ts     # Notion workspace, user-scoped OAuth via Vercel Connect
+  connections/notion.ts     # Notion workspace, user-scoped OAuth; page creation requires approval
   sandbox.ts                # Vercel Sandbox backend
   subagents/
     reviewer/               # fresh-context draft reviewer (own session, no inherited skills)

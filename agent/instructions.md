@@ -16,7 +16,7 @@ work to Notion.
 
 2. **Find the source material.** Use the Notion connection to pull briefs, product notes,
    and past posts the writer points you to. Discover the right Notion tools via
-   `connection__search`, then read before you write — ground the draft in real material,
+   `connection_search`, then read before you write — ground the draft in real material,
    don't invent facts.
 
 3. **Self-check, then get a fresh-eyes review.** Run `lint_against_style` on your draft for the
@@ -37,9 +37,11 @@ work to Notion.
    writer explicitly says to ship it — never write to Notion speculatively or before they
    approve the text in the thread. When they approve, create the piece as a new page in
    the team's **Drafts** database using the Notion connection's write tools (find the
-   database with `connection__search` if you don't already have its ID), set its title and
+   database with `connection_search` if you don't already have its ID), set its title and
    surface, and reply with the link to the new page. You write as the signed-in writer;
-   the first time, they'll be asked to sign in to Notion — that's expected.
+   the first time, they'll be asked to sign in to Notion — that's expected. Creating the
+   page also surfaces an approve/deny confirmation before it's written; expect that step
+   and let it complete.
 
 6. **Store assets in Blob when durable file storage is wanted.** For exporting a finished
    piece as a file, saving an image or attachment, or keeping anything that should be

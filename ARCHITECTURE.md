@@ -31,7 +31,7 @@ agent/
   channels/
     slack.ts                # Slack surface; credentials via Vercel Connect
   connections/
-    notion.ts               # Notion MCP server, user-scoped OAuth via Vercel Connect
+    notion.ts               # Notion MCP server, user-scoped OAuth; page creation approval-gated
   sandbox.ts                # sandbox backend (Vercel Sandbox)
   subagents/
     reviewer/               # agent.ts + instructions.md; fresh-context draft reviewer
@@ -41,10 +41,10 @@ agent/
     list_assets.ts          # Vercel Blob: browse
     get_asset_info.ts       # Vercel Blob: metadata
     download_asset.ts       # Vercel Blob: read back (Blob URLs only)
-    delete_asset.ts         # Vercel Blob: delete (needsApproval)
+    delete_asset.ts         # Vercel Blob: delete (approval-gated)
     get_writer_preferences.ts   # Blob: load this writer's saved preferences
     save_writer_preferences.ts  # Blob: save standing preferences (principal-scoped)
-    clear_writer_preferences.ts # Blob: clear this writer's preferences (needsApproval)
+    clear_writer_preferences.ts # Blob: clear this writer's preferences (approval-gated)
   lib/
     writer-preferences.ts   # principal-scoped Blob key + reserved-prefix guard (shared helper)
   skills/                   # one style skill per surface; shared refs synced into each
@@ -68,7 +68,7 @@ scripts/
 | Agent runtime | `agent/agent.ts` + `instructions.md` | Agent | The model loop and behavior; orchestrates skills, tools, and the connection |
 | Style skills | `agent/skills/<surface>-style/` | Skill | Voice/structure rules per surface (blog, LinkedIn, X, release-notes, newsletter), loaded on demand; house-wide rules synced in from `shared-references/` |
 | Style lint | `agent/tools/lint_against_style.ts` | Tool | Deterministic banned-words check, reads the skill's `banned-words.json` |
-| Notion access | `agent/connections/notion.ts` | Connection (MCP) | Search/read/write Notion as the signed-in writer |
+| Notion access | `agent/connections/notion.ts` | Connection (MCP) | Search/read/write Notion as the signed-in writer; page creation (`notion-create-pages`) is approval-gated |
 | Asset tools | `agent/tools/{upload,list,get_asset_info,download,delete}_asset.ts` | Tools | Store and manage files in Vercel Blob |
 | Writer preferences | `agent/tools/{get,save,clear}_writer_preferences.ts` + `agent/lib/writer-preferences.ts` | Tools | Per-writer standing style preferences in Blob, keyed to the resolved principal (never model input) |
 | Reviewer subagent | `agent/subagents/reviewer/` | Subagent | Fresh-context, verdict-only review of a finished draft against the surface rubric before it reaches the writer |
@@ -122,8 +122,10 @@ There is no application database.
 - **Outbound auth:** Notion is per-writer OAuth via Vercel Connect (token resolved per call,
   never exposed to the model); Blob uses the project OIDC token. No API keys live in code,
   and `.env*` is gitignored.
-- **Human-in-the-loop:** irreversible actions (`delete_asset`, `clear_writer_preferences`) are
-  gated with `needsApproval` from `eve/tools/approval`, rendered as a Slack approve/deny button.
+- **Human-in-the-loop:** irreversible tool actions (`delete_asset`, `clear_writer_preferences`)
+  are gated with `approval` from `eve/tools/approval`, and the Notion connection gates page
+  creation (`notion-create-pages`) with a per-connection `approval` policy. Each renders as a
+  Slack approve/deny button.
 - **Input hardening:** `lint_against_style` escapes banned words before building a `RegExp`
   (prevents ReDoS) and bounds input length; `download_asset` only fetches
   `*.blob.vercel-storage.com` URLs (prevents SSRF).
@@ -146,9 +148,10 @@ There is no application database.
 
 - Richer Markdown to Notion block conversion (headings, lists, code) beyond paragraph splits.
 - Optional asset tools not yet included: `copy_asset` and bulk `delete_assets`.
-- An optional hard write gate: an authored `publish_to_notion` tool with `needsApproval`
-  (instead of relying on the in-thread approval convention), if a button-based publish
-  confirmation is wanted.
+- Extending the Notion write gate: `notion-create-pages` is already approval-gated at the
+  connection level; add `notion-update-page` / `notion-update-database` to
+  `APPROVAL_REQUIRED_TOOLS` if edits should confirm too. Notion's MCP server exposes no delete
+  tool, so deletions happen in the Notion UI.
 
 ## Glossary
 
