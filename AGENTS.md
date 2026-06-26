@@ -39,7 +39,9 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   `agent/tools/*.ts` (`defineTool`), `agent/connections/*.ts`, `agent/channels/*.ts`,
   `agent/skills/<name>/SKILL.md`, `agent/subagents/<id>/agent.ts` (`defineAgent`), `agent/sandbox.ts`.
 - **Tools** run in the app runtime (full `process.env`), one default export per file. Gate
-  destructive tools with `needsApproval` from `eve/tools/approval`.
+  destructive tools with `approval` from `eve/tools/approval`. **Connections** accept the same
+  `approval` field — pass a policy that inspects `toolName`/`toolInput` to gate specific tools
+  (e.g. `notion` gates `notion-create-pages` via its `APPROVAL_REQUIRED_TOOLS` list).
 - **Skills** are load-on-demand. A packaged skill (`<name>/SKILL.md`) requires `description`
   frontmatter; that description is the routing hint. Adding a new surface means a new skill
   folder **and** a matching entry in the `lint_against_style` surface enum.
@@ -75,8 +77,9 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   Blob auth is via the project's OIDC token — there are no API keys in code.
 - When building a `RegExp` from data, escape it (literal match) to avoid ReDoS; bound
   untrusted input length.
-- Gate irreversible actions (e.g. `delete_asset`, `clear_writer_preferences`) behind
-  `needsApproval`.
+- Gate irreversible or high-impact actions behind `approval`: destructive tools
+  (`delete_asset`, `clear_writer_preferences`) and connection writes (the `notion` connection
+  gates `notion-create-pages`).
 - For per-user storage, derive the key from the resolved principal
   (`ctx.session.auth.current`), never from model input — see `agent/lib/writer-preferences.ts`.
   The writer-preference files live under the reserved `writer-preferences/` Blob prefix, which

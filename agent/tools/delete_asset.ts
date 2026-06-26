@@ -25,7 +25,7 @@ export default defineTool({
     url: z.string(),
     error: z.string().optional(),
   }),
-  needsApproval: always(),
+  approval: always(),
   /**
    * Delete the asset.
    *

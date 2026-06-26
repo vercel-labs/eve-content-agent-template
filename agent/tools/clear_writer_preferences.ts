@@ -23,7 +23,7 @@ export default defineTool({
     deleted: z.boolean(),
     error: z.string().optional(),
   }),
-  needsApproval: always(),
+  approval: always(),
   /**
    * Delete the current writer's preferences file, if any.
    *
