@@ -36,8 +36,10 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   `agent/tools/upload_asset.ts` is the tool `upload_asset`; a connection at
   `agent/connections/notion.ts` registers as `notion`.
 - Authored slots: `agent/agent.ts` (model), `agent/instructions.md` (system prompt),
-  `agent/tools/*.ts` (`defineTool`), `agent/connections/*.ts`, `agent/channels/*.ts`,
-  `agent/skills/<name>/SKILL.md`, `agent/subagents/<id>/agent.ts` (`defineAgent`), `agent/sandbox.ts`.
+  `agent/tools/*.ts` (`defineTool`, or `defineWorkflowTool` for durable tools such as `research`),
+  `agent/connections/*.ts`, `agent/channels/*.ts`, `agent/skills/<name>/SKILL.md`,
+  `agent/subagents/<id>/agent.ts` (`defineAgent`), `agent/sandbox.ts` (exports `environment` and
+  a `defineSandbox()` default).
 - **Tools** run in the app runtime (full `process.env`), one default export per file. Gate
   destructive tools with `approval` from `eve/tools/approval`. **Connections** accept the same
   `approval` field — pass a policy that inspects `toolName`/`toolInput` to gate specific tools
@@ -46,7 +48,9 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   frontmatter; that description is the routing hint. Adding a new surface is just a new
   `<surface>-style` skill folder: the `SURFACES` enum that `lint_against_style` and the reviewer's
   `get_surface_rubric` share is generated from those folders into `agent/lib/surfaces.generated.ts`
-  by `pnpm sync:shared`, so there is no hand-edited enum to keep in step.
+  by `pnpm sync:shared`, so there is no hand-edited enum to keep in step. Tool code can't read skill
+  files at runtime (`ctx.getSkill()` is gone), so each skill's `references/banned-words.json` is
+  bundled into `agent/lib/banned-words.generated.ts` by the same script.
 - **Shared references** live in `shared-references/` (the source of truth). `scripts/sync-shared.mjs`
   copies them into every skill's `references/` and regenerates the managed `## Shared references`
   section in each `SKILL.md` (the bullet text lives in that script's `SHARED_FILES`). Edit the
@@ -58,7 +62,10 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
   child session and **inherits nothing** from the root (no skills, connections, tools, or
   sandbox), so the caller passes everything it needs in the `message`. Here: `researcher` and
   `reviewer` (the reviewer carries its own generated rubric module + `get_surface_rubric` tool
-  rather than inheriting the root's skills).
+  rather than inheriting the root's skills). `defineAgent` no longer takes `outputSchema`, so both
+  set `tool: false` and the root reaches them through the `research` / `review` workflow tools,
+  which call `ctx.agent("<id>").send(message, { outputSchema })`. A tool can't share a subagent's
+  name (the compiler rejects it even with `tool: false`), hence the different names.
 - After editing, **check LSP diagnostics / `pnpm typecheck`** and fix type errors before
   moving on.
 
@@ -70,6 +77,9 @@ There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve
 - TypeScript strict; ESM with `NodeNext` resolution (relative imports need a `.js`
   extension). Prefer `const`, arrow functions, optional chaining / nullish coalescing.
 - Validate tool input/output with `zod` schemas.
+- `@biomejs/biome` is pinned to 2.5.x: Ultracite 8.0.x's preset still configures a nursery rule
+  that Biome 2.6 renamed, so Biome 2.6 refuses the config. Bump both together once Ultracite
+  supports 2.6 (`pnpm exec ultracite doctor` checks the pairing).
 - Document exported config with **TSDoc** (`@remarks`, `@param`, `@returns`, `@defaultValue`,
   `@see`). Avoid inline `//` comments — put rationale in the TSDoc block instead.
 

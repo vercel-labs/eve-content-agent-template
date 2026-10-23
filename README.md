@@ -64,11 +64,14 @@ agent/
   instructions.md           # the agent's behavior
   channels/slack.ts         # Slack surface (Vercel Connect credentials)
   connections/notion.ts     # Notion workspace, user-scoped OAuth; page creation requires approval
-  sandbox.ts                # Vercel Sandbox backend
+  sandbox.ts                # Vercel Sandbox environment
   subagents/
     researcher/             # fresh-context web researcher (own session, web tools only)
     reviewer/               # fresh-context draft reviewer (own session); pulls its rubric via a tool
   tools/
+    research.ts             # runs the researcher subagent; returns cited findings + gaps
+    review.ts               # runs the reviewer subagent; returns a verdict + issues
+    ask_question.ts         # ask the writer a question (Slack renders options as a menu)
     lint_against_style.ts   # deterministic banned-words check
     upload_asset.ts         # Vercel Blob: store text or binary content
     list_assets.ts          # Vercel Blob: browse stored assets
@@ -81,6 +84,7 @@ agent/
   lib/
     writer-preferences.ts   # principal-scoped Blob key + reserved-prefix guard
     surfaces.generated.ts   # generated SURFACES enum (skill folders are the source of truth)
+    banned-words.generated.ts # generated banned-words lists for lint_against_style
   skills/                   # one style skill per surface
     blog-style/             # + best-practices.md and format-specs.md
     linkedin-style/         # + best-practices.md and post-specs.md
@@ -91,7 +95,7 @@ shared-references/          # house-wide writing rules (source of truth), synced
   ai-phrases-to-avoid.md
   plain-english-alternatives.md
 scripts/
-  sync-shared.mjs           # syncs shared refs into skills; generates SURFACES + reviewer rubric (pnpm sync:shared)
+  sync-shared.mjs           # syncs shared refs into skills; generates SURFACES, banned words + reviewer rubric (pnpm sync:shared)
 ```
 
 ## Local development
@@ -147,14 +151,15 @@ vercel blob create-store <name> --access public --yes
 ## Customizing
 
 - **Voice:** edit the per-surface skills in `agent/skills/*/SKILL.md`, and the
-  `references/banned-words.json` each one lints against. Add a new surface by adding a new
+  `references/banned-words.json` each one lints against (run `pnpm sync:shared` after editing it,
+  so `lint_against_style` picks up the change). Add a new surface by adding a new
   `<surface>-style` skill folder and running `pnpm sync:shared` — the `SURFACES` enum shared by
   `lint_against_style` and the reviewer is generated from the folders, so there's no list to edit.
 - **House-wide rules:** edit the shared writing rules in `shared-references/` (the source of
   truth), then run `pnpm sync:shared`. It copies them into every skill's `references/` and
   regenerates the managed `## Shared references` section in each `SKILL.md` (a skill's own
-  `## References` section is left alone), and regenerates `agent/lib/surfaces.generated.ts` and
-  the reviewer's rubric module. The sync also runs automatically on `pnpm dev` and `pnpm build`.
+  `## References` section is left alone), and regenerates `agent/lib/surfaces.generated.ts`,
+  `agent/lib/banned-words.generated.ts`, and the reviewer's rubric module. The sync also runs automatically on `pnpm dev` and `pnpm build`.
   Never edit the synced copies or generated files directly.
 - **Behavior:** edit `agent/instructions.md`.
 - **Model:** edit `agent/agent.ts` (or run `/model` in the dev TUI).
