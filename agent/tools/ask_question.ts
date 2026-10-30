@@ -11,4 +11,6 @@ import { askQuestion } from "eve/tools/ask_question";
  *
  * @see {@link https://eve.dev/docs/concepts/built-in-tools | eve built-in tools}
  */
-export default askQuestion();
+const askQuestionTool = askQuestion;
+
+export default askQuestionTool;
