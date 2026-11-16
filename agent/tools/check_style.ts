@@ -56,9 +56,10 @@ const CHECK_SCHEMA = z.object({
  * Result shape for a style check.
  *
  * @remarks
- * Declared as the tool's `outputSchema` so eve validates and types the `execute` return.
- * `escalation` records why the reviewer ran, so a failing decision model shows up as
- * `decide_error` instead of being hidden behind the fallback.
+ * Declared as the tool's `outputSchema`, which describes the result and types the `execute`
+ * return. eve doesn't check a result against it at runtime; the unit tests do. `escalation`
+ * records why the reviewer ran, so a failing decision model shows up as `decide_error` instead of
+ * being hidden behind the fallback.
  */
 const OUTPUT_SCHEMA = z.object({
   checks: z

@@ -9,5 +9,11 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["agent/**/*.ts", "evals/**/*.ts", ".eve/**/*.d.ts"]
+  "include": [
+    "agent/**/*.ts",
+    "evals/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    ".eve/**/*.d.ts"
+  ]
 }

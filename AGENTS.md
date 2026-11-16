@@ -16,8 +16,9 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the component map, data flow, and
 
 ```bash
 pnpm install        # install dependencies (Node >= 24)
-pnpm dev            # eve dev — local TUI; run /model once to link a model provider
-pnpm typecheck      # tsc (TypeScript, no emit)
+pnpm dev            # eve dev — local TUI; run /login once to connect a model provider
+pnpm typecheck      # tsc (TypeScript, no emit); also enforces tests/types.test.ts
+pnpm test           # vitest unit tests under tests/ — needs no server, model, or network
 pnpm check          # ultracite (Biome) lint + format check
 pnpm fix            # ultracite (Biome) auto-fix
 pnpm build          # eve build
@@ -27,12 +28,36 @@ eve deploy          # deploy to Vercel production (use this, not raw `vercel dep
 npx eve info        # print the discovered surface + discovery diagnostics
 ```
 
-There is no unit-test suite. **Verify changes with `pnpm typecheck` and `npx eve info`
-(both must report 0 errors / 0 warnings), then run `pnpm eval:offline`, and `pnpm eval` when
-you have credentials, and exercise the agent in the `pnpm dev` TUI.** The offline evals run the
-agents on the mock models in `agent/lib/mock-model.ts` (`EVE_MOCK_MODEL=1`) and make no
-model calls; the live evals call real models, so they need the project's AI Gateway credentials
-(`vercel env pull` or `/login` in the TUI).
+**Verify changes with `pnpm typecheck`, `pnpm test`, and `npx eve info` (0 errors / 0
+warnings), then run `pnpm eval:offline`, and `pnpm eval` when you have credentials, and exercise
+the agent in the `pnpm dev` TUI.** The unit tests under `tests/` import the definitions under
+`agent/` and call them directly, with no eve server; two of them also run a command on a
+temporary copy of the project (`eve info` and `scripts/sync-shared.mjs`). The offline evals run
+the agents on the mock models in `agent/lib/mock-model.ts` (`EVE_MOCK_MODEL=1`) through a local
+eve server. Neither makes a model call. The live evals call real models, so they need the
+project's AI Gateway credentials (`vercel env pull` or `/login` in the TUI).
+
+## Testing
+
+- **Keep tests in `tests/`, never under `agent/`**: eve turns the files it finds there into
+  tools and other capabilities.
+- **Call tools with `callTool` from `tests/helpers/tool.ts`.** It validates the input, runs
+  `execute`, and validates the output against the tool's `outputSchema`, so every call also checks
+  the declared contract. `acceptsInput` checks an input limit without running the tool.
+- **Fake the edges, not the code under test.** `@vercel/blob` is mocked with `vi.mock`;
+  subagents are faked with `fakeWorkflowContext` (`tests/helpers/workflow-context.ts`), which
+  records what a workflow tool sent; `fakeDecisionModel` (`tests/helpers/decision-model.ts`)
+  replaces only the decision model behind eve's real `decide()` and `auto()`. `tests/setup.ts`
+  rejects any `fetch` and clears the environment variables the agent reads, so a test that
+  reaches the network fails and the result doesn't depend on the shell.
+- **Don't hard-code what a writer can customize.** The tests take surfaces, banned words, and
+  model ids from the modules under `agent/lib/`, so editing a banned-words list, adding a style
+  skill, or changing a model id needs no test change.
+- **Adding or removing a tool or subagent changes `tests/discovery.test.ts`**, which pins the
+  tools, subagents, and routes `eve info` reports. That is deliberate: it is also what catches
+  an eve upgrade that adds a default tool.
+- **Type contracts live in `tests/types.test.ts`** (`expectTypeOf`, `@ts-expect-error`) and are
+  enforced by `pnpm typecheck`, not by `pnpm test`.
 
 ## eve conventions
 
@@ -75,9 +100,11 @@ model calls; the live evals call real models, so they need the project's AI Gate
   compiler rejects it even with `tool: false`), hence the different names.
 - **Models** are Gateway ids kept in `agent/lib/models.ts`. The researcher's model is routed per
   call with `auto()` from `eve/models` (a decision model picks from an allowlist using the research
-  message; `fallback` covers decider failures only, and a message over 16,000 characters is
-  rejected). `check_style` asks the same decision model yes/no questions with `decide()` from
-  `eve/ai`, inside a `"use step"` helper so replay reuses the answers. `decide` returns
+  message; `fallback` covers decider failures only, including a message the decision provider
+  rejects as too long. The router has no length limit of its own, so the `research` tool caps its
+  message at 15,000 characters to bound routing cost). `check_style` asks the same decision
+  model yes/no questions with `decide()` from `eve/ai`, inside a `"use step"` helper so replay
+  reuses the answers. `decide` returns
   probabilities, not calibrated confidence: treat a mid-range value as "unsure" and fall back to a
   model that can reason (here, the `reviewer` subagent), and report why the fallback ran.
 - After editing, **check LSP diagnostics / `pnpm typecheck`** and fix type errors before
@@ -111,14 +138,16 @@ model calls; the live evals call real models, so they need the project's AI Gate
   model input — see `agent/memory/preferences.ts`, which gives only signed-in writers a memory
   document. The asset tools refuse the Blob prefixes listed in `agent/lib/reserved-paths.ts`, so
   they can't read or overwrite a writer's memory.
-- Give each agent only the built-in tools it needs. The root keeps `read_file` (skills read their
-  references with it) and has `bash`, `write_file`, and `edit_file` disabled; the researcher and
-  the reviewer set `defaultTools: false`, and the researcher adds back only `web_search` and
-  `web_fetch`.
+- Give each agent only the built-in tools it needs. The root has `bash`, `write_file`, and
+  `edit_file` disabled. It keeps `read_file` (skills read their references with it) and eve's
+  other defaults, `web_fetch`, `web_search`, and `agent`; `tests/discovery.test.ts` pins that
+  list. The researcher and the reviewer set `defaultTools: false`, and the researcher adds back
+  only `web_search` and `web_fetch`.
 
 ## Before committing
 
 - `pnpm typecheck` passes.
+- `pnpm test` passes.
 - `pnpm check` (Ultracite) passes.
 - `npx eve info` reports 0 errors / 0 warnings.
 - No secrets, `node_modules`, or build output (`.eve`, `.vercel`, `.output`) staged.

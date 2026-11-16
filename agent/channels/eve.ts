@@ -1,29 +1,13 @@
-import { localDev, vercelOidc } from "eve/channels/auth";
-import { type EveAuthFn, eveChannel } from "eve/channels/eve";
+import { vercelOidc } from "eve/channels/auth";
+import { eveChannel } from "eve/channels/eve";
+import { localDevUser } from "../lib/local-dev-user.js";
 
 /**
- * eve's local-development authenticator: admits loopback callers on a development server.
- */
-const localDevAuth = localDev();
-
-/**
- * Dev-only: present a trusted local session as an authenticated user.
+ * Default HTTP channel: serves the dev TUI, the evals, and Vercel-authenticated callers.
  *
  * @remarks
- * The Notion connection is user-scoped, and `localDev()` yields a `local-dev` principal, so
- * user-scoped tool calls from the dev TUI would fail with `principal_required`. This shim
- * upgrades whatever `localDev()` admits to a `user` principal and returns `null` for the rest, so
- * it never affects production. `allowAgentInfo` keeps `GET /eve/v1/info` readable for that
- * caller, which the dev TUI and `eve eval` need and a `user` principal doesn't get by default.
- *
- * @param request - The inbound request to authenticate.
- * @returns A user principal for a trusted local caller, or `null` to defer to the next strategy.
+ * {@link localDevUser} admits a trusted local caller on a development server as a user
+ * principal, so the user-scoped Notion connection works in the dev TUI; it returns `null`
+ * everywhere else, which leaves `vercelOidc()` as the only way in on a deployment.
  */
-const localDevUser: EveAuthFn = async (request) => {
-  const local = await localDevAuth(request);
-  return local
-    ? { ...local, allowAgentInfo: true, principalType: "user" }
-    : null;
-};
-
 export default eveChannel({ auth: [localDevUser, vercelOidc()] });

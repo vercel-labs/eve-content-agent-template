@@ -8,7 +8,7 @@ it current as the codebase evolves.
 - **Name:** Content Agent (eve content assistant template)
 - **Maintainer:** Vercel Labs
 - **License:** Apache-2.0
-- **Last updated:** 2026-10-24
+- **Last updated:** 2026-11-16
 
 ## Overview
 
@@ -30,7 +30,7 @@ agent/
   instructions.md           # base system prompt / behavior
   channels/
     slack.ts                # Slack surface; credentials via Vercel Connect
-    eve.ts                  # default HTTP channel; local dev sessions get a user principal
+    eve.ts                  # default HTTP channel; local dev sessions get a user principal (lib/local-dev-user.ts)
   connections/
     notion.ts               # Notion MCP server, user-scoped OAuth; page creation approval-gated
   sandbox.ts                # sandbox environment (Vercel Sandbox)
@@ -51,6 +51,7 @@ agent/
     detect_surface.ts       # decide() choice: which surface a request is for, or "ask"
     bash.ts, write_file.ts, edit_file.ts  # disableTool(): built-ins the root doesn't need
   lib/
+    local-dev-user.ts       # dev-only auth shim used by channels/eve.ts
     reserved-paths.ts       # Blob prefixes the asset tools refuse (writer memory)
     mock-model.ts           # mock models for the offline evals (EVE_MOCK_MODEL=1)
     surfaces.generated.ts   # generated shared SURFACES enum (skill folders are the source of truth)
@@ -66,6 +67,17 @@ shared-references/          # house-wide writing rules (source of truth), synced
   plain-english-alternatives.md
 scripts/
   sync-shared.mjs           # syncs shared refs into skills; generates SURFACES, banned words + reviewer rubric (pnpm sync:shared)
+tests/                      # vitest unit suite (pnpm test); outside agent/ so eve doesn't discover it
+  helpers/                  # callTool, fake tool/workflow contexts, fake decision model
+  tools/, lib/, subagents/  # behavior of each tool and helper, with Blob and subagents faked
+  agents.test.ts            # model ids, agent definitions, disabled built-ins
+  channels.test.ts          # local-dev sign-in shim, eve and Slack channel wiring
+  connections.test.ts       # Notion connector and approval policy
+  memory.test.ts            # per-writer memory scope
+  decision-model.test.ts    # eve's real decide() and auto() against a fake decision model
+  discovery.test.ts         # the surface `eve info --json` reports
+  generated.test.ts         # generated modules match their sources; sync:shared is a no-op
+  types.test.ts             # compile-time contracts, enforced by pnpm typecheck
 ```
 
 ## Core components
@@ -117,7 +129,7 @@ There is no application database.
 | Slack | Chat surface (inbound events + outbound messages) | Vercel Connect connector (`SLACK_CONNECTOR`), webhook trigger at `/eve/v1/slack` |
 | Notion (MCP) | Read source material, write drafts | MCP connection with user-scoped OAuth via Vercel Connect (`NOTION_CONNECTOR`) |
 | Vercel Blob | File/asset storage | `@vercel/blob`, OIDC-authenticated |
-| Vercel AI Gateway | Model access | Gateway model ids in `agent/lib/models.ts`, resolved through the linked project: `anthropic/claude-opus-5.5` (root), `openai/gpt-6.1-sol` (reviewer), `anthropic/claude-fable-5.2` or `anthropic/claude-opus-5.5-fast` for research (routed per call by `auto()`), and `google/gemini-decision-1` (the router and `check_style`'s decision model) |
+| Vercel AI Gateway | Model access | Gateway model ids in `agent/lib/models.ts`, resolved through the linked project: `anthropic/claude-fable-5.2` (root), `openai/gpt-6.1-sol` (reviewer), `anthropic/claude-fable-5.2` or `anthropic/claude-opus-5.5-fast` for research (routed per call by `auto()`), and `google/gemini-decision-1` (the router and `check_style`'s decision model) |
 | Vercel Sandbox | Isolated runtime that holds seeded skill files | `agent/sandbox.ts` (`VercelSandbox.environment()`) |
 
 ## Deployment & infrastructure
@@ -138,7 +150,8 @@ There is no application database.
 
 - **Inbound route auth** (`agent/channels/`): `agent/channels/eve.ts` keeps the framework's
   `localDev()` + `vercelOidc()` pair, which rejects public browser traffic, and marks local dev
-  sessions as a user principal so the user-scoped Notion connection works in the TUI; Slack
+  sessions as a user principal (`agent/lib/local-dev-user.ts`) so the user-scoped Notion
+  connection works in the TUI; Slack
   traffic is authenticated by its connector. Slack's `defaultSlackAuth` issues a per-user
   (`principalType: "user"`) principal.
 - **Outbound auth:** Notion is per-writer OAuth via Vercel Connect (token resolved per call,
@@ -156,9 +169,10 @@ There is no application database.
   document, so a session can only read or change its own writer's preferences. The asset tools
   refuse the Blob prefixes in `agent/lib/reserved-paths.ts`, so they can't be used as a side
   channel.
-- **Least-privilege tools:** the root has `bash`, `write_file`, and `edit_file` disabled and
-  keeps `read_file` for skill references; the researcher and reviewer set `defaultTools: false`; the researcher adds back
-  only `web_search` and `web_fetch`, so fetched web content can't reach a shell or the
+- **Least-privilege tools:** the root has `bash`, `write_file`, and `edit_file` disabled. It
+  keeps `read_file` for skill references and eve's other defaults (`web_fetch`, `web_search`,
+  and `agent`). The researcher and reviewer set `defaultTools: false`; the researcher adds back
+  only `web_search` and `web_fetch`, so the web content it fetches can't reach a shell or the
   filesystem, and the reviewer has only `get_surface_rubric`.
 - **Mock models:** `EVE_MOCK_MODEL=1` swaps every agent's model for a mock
   (`agent/lib/mock-model.ts`) for the offline evals. Never set it on a deployment that serves
@@ -166,8 +180,19 @@ There is no application database.
 
 ## Development & testing
 
-- **Runtime/TUI:** `pnpm dev` (eve dev TUI; `/model` links a provider).
-- **Type checking:** `pnpm typecheck` (tsc).
+- **Runtime/TUI:** `pnpm dev` (eve dev TUI; `/login` connects a provider, `/model` picks a model).
+- **Type checking:** `pnpm typecheck` (tsc). It covers `tests/` too, which is what enforces the
+  type assertions in `tests/types.test.ts`.
+- **Unit tests:** `pnpm test` (Vitest) runs `tests/` in a few seconds and needs no eve server,
+  model, or network (`tests/setup.ts` rejects any `fetch` and clears the environment variables
+  the agent reads). The tests import the definitions under `agent/` and call them directly: each
+  tool's behavior, input limits, and declared output; the style check's thresholds and reviewer
+  fallback; the asset tools' reserved-path and Blob-host guards; the Notion approval policy; the
+  memory scope; the local-dev sign-in shim; the mock models; and the generated modules against
+  their sources. `tests/decision-model.test.ts` runs eve's real `decide()` and the researcher's
+  `auto()` router against a fake decision model. `tests/discovery.test.ts` compiles a temporary
+  copy of the project with `eve info` and pins the tools, skills, subagents, and routes it
+  reports.
 - **Lint/format:** `pnpm check` / `pnpm fix` (Ultracite, a Biome preset; config in
   `biome.jsonc`).
 - **Discovery diagnostics:** `npx eve info` (must report 0 errors / 0 warnings).
@@ -179,7 +204,9 @@ There is no application database.
   decision model, surface detection, research, and a draft-quality case graded by `t.judge`.
   `check-style/decision-rules` fails when the decision model is unreachable, so a broken decider
   can't hide behind `check_style`'s reviewer fallback.
-- There is no unit-test suite; verify behavior with the evals and in the dev TUI.
+- The unit tests cover the authored code in isolation and the offline evals cover it running
+  inside eve; neither calls a model, so check model-dependent behavior with the live evals and
+  in the dev TUI.
 
 ## Future considerations
 
