@@ -22,7 +22,8 @@ const CONFIDENT = 0.75;
  * Result shape for surface detection.
  *
  * @remarks
- * Declared as the tool's `outputSchema` so eve validates and types the `execute` return.
+ * Declared as the tool's `outputSchema`, which describes the result and types the `execute`
+ * return. eve doesn't check a result against it at runtime; the unit tests do.
  */
 const OUTPUT_SCHEMA = z.object({
   outcome: z

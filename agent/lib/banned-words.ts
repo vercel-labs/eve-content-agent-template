@@ -43,6 +43,22 @@ const bannedWordMatcher = (word: string): RegExp => {
 };
 
 /**
+ * Find every entry of a banned-words list that appears in a draft.
+ *
+ * @remarks
+ * The matching rules behind {@link findBannedWords}, taking the list as an argument so they can
+ * be tested apart from what the style skills currently ban.
+ *
+ * @param words - Trimmed, non-empty banned entries.
+ * @param text - Draft text to scan; the caller bounds its length.
+ * @returns The entries found, in list order, each at most once.
+ */
+export const findListedWords = (
+  words: readonly string[],
+  text: string
+): string[] => words.filter((word) => bannedWordMatcher(word).test(text));
+
+/**
  * Find every banned word from a surface's list that appears in a draft.
  *
  * @remarks
@@ -56,4 +72,4 @@ const bannedWordMatcher = (word: string): RegExp => {
  * @returns The banned entries found, in list order.
  */
 export const findBannedWords = (surface: Surface, text: string): string[] =>
-  BANNED_WORDS[surface].filter((word) => bannedWordMatcher(word).test(text));
+  findListedWords(BANNED_WORDS[surface], text);

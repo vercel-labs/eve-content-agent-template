@@ -63,9 +63,11 @@ const RESEARCH_SCHEMA = z.object({
  * Maximum research message length accepted, in characters.
  *
  * @remarks
- * The researcher's model router (`auto` from `eve/models`) rejects a message over 16,000
- * characters before any provider call, and its `fallback` does not cover that case. The cap
- * leaves room for the `Research depth:` prefix this tool adds.
+ * Bounds the input the tool accepts and keeps a research brief focused. The researcher's model
+ * router (`auto` from `eve/models`) sends the decision model the whole message, so a longer one
+ * costs more and takes longer to route. eve 1.0 dropped the router's own 16,000-character limit;
+ * a decision provider's input-limit error now uses the router's `fallback`, like any other
+ * decision failure.
  */
 const MAX_MESSAGE_LENGTH = 15_000;
 

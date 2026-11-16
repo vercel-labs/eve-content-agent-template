@@ -48,7 +48,7 @@ const shared = {
  * prompt) and picks {@link DEEP_RESEARCH_MODEL} or {@link STANDARD_RESEARCH_MODEL} from the
  * descriptions below. The `research` tool prefixes the message with a `Research depth:` line
  * when the root states one, which gives the router an explicit signal. `fallback` applies only
- * when the decision model itself fails.
+ * when the decision fails, which includes a message the decision provider rejects as too long.
  *
  * The two `defineAgent` calls differ only in `model`: a routed model and a plain model are
  * separate overloads, so one call can't take either. Under {@link MOCK_MODELS} the model is a

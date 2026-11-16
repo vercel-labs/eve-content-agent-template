@@ -91,6 +91,7 @@ agent/
     bash.ts, write_file.ts, edit_file.ts  # disable built-in tools the agent doesn't need
   lib/
     reserved-paths.ts       # Blob prefixes the asset tools refuse (writer memory)
+    local-dev-user.ts       # dev-only auth: a trusted local caller becomes a user principal
     mock-model.ts           # mock models for the offline evals (EVE_MOCK_MODEL=1)
     surfaces.generated.ts   # generated SURFACES enum (skill folders are the source of truth)
     banned-words.generated.ts # generated banned-words lists for check_style
@@ -108,6 +109,7 @@ shared-references/          # house-wide writing rules (source of truth), synced
   plain-english-alternatives.md
 scripts/
   sync-shared.mjs           # syncs shared refs into skills; generates SURFACES, banned words + reviewer rubric (pnpm sync:shared)
+tests/                      # unit tests (pnpm test): tools, policies, generated files, types
 ```
 
 ## Local development
@@ -119,7 +121,7 @@ vercel link
 vercel env pull
 ```
 
-Then run the development server and link a model provider with `/model` in the TUI:
+Then run the development server and connect a model provider with `/login` in the TUI:
 
 ```bash
 pnpm dev
@@ -131,6 +133,24 @@ and Blob flows. The Slack surface itself only runs against a deployment. Ship ch
 ```bash
 eve deploy
 ```
+
+### Tests
+
+```bash
+pnpm test           # unit tests: needs no server, model, or network; a few seconds
+pnpm typecheck      # also enforces the type tests in tests/types.test.ts
+```
+
+The unit suite (`tests/`) imports the files under `agent/` and calls them directly. It covers
+every tool's behavior and input limits (Blob and subagents are faked), the style check's
+thresholds and reviewer fallback, the Notion approval policy, the memory scope, the local-dev
+sign-in shim, the generated modules, and the tool surface eve discovers. A fake decision model
+stands in for the real one, so `decide()` and the researcher's model router run for real
+without a network call.
+
+The tests read surfaces, banned words, and model ids from the code, so the customizations below
+need no test change. The exception is adding or removing a tool or subagent: update the list in
+`tests/discovery.test.ts`, which pins what the agent exposes.
 
 ### Evals
 

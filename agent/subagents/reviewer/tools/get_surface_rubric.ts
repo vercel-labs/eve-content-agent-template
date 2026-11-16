@@ -7,8 +7,9 @@ import { REVIEWER_RUBRIC } from "../lib/rubric.generated.js";
  * Result shape: exactly the rubric the reviewer judges a draft against — nothing it doesn't use.
  *
  * @remarks
- * Declared as the tool's `outputSchema` so eve validates and types the `execute` return. All
- * fields are raw Markdown pulled verbatim from the bundled rubric.
+ * Declared as the tool's `outputSchema`, which describes the result and types the `execute`
+ * return. eve doesn't check a result against it at runtime; the unit tests do. All fields are raw
+ * Markdown pulled verbatim from the bundled rubric.
  */
 const OUTPUT_SCHEMA = z.object({
   aiPhrasesToAvoid: z.string(),
